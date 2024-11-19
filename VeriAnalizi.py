@@ -235,3 +235,7 @@ plt.ylabel('Satış Değişim Oranı')
 plt.legend()
 plt.grid()
 plt.show()
+
+
+
+jkansjkanjsdnsajdsdads
