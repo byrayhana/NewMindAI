@@ -82,8 +82,4 @@ Bu projenin amacı, müşteri ve satış verilerini kullanarak:
 2. 50 yaş üstü müşterilere yönelik özel ürün paketleri sunularak gelir artırılabilir.  
 3. Elektronik kategorisine daha fazla yatırım yapılabilirken, moda kategorisinde çeşitlilik artırılabilir.  
 
-#### **Teknik Yetkinliklerin Gösterilmesi:**  
-Bu çalışma, Python ve veri analitiği kütüphanelerini kullanarak güçlü veri manipülasyon ve görselleştirme yetkinliklerini sergilemektedir.  
 
-#### **Ek Notlar:**  
-Bu rapor, müşteri ve satış analizi projelerinin benzer yapıdaki problemleri için bir rehber niteliğindedir. 
