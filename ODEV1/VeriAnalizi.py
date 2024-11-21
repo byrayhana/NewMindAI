@@ -3,6 +3,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 500)
+pd.options.display.float_format = '{:.2f}'.format
 
 ''' 
 Görev 1: Veri Temizleme ve Manipülasyonu (%25)
@@ -34,15 +35,15 @@ def ObjtoFloat(df,colname):
         print(problematic_values)
     # tarih formatlı olan degerleri değiştirmek için NAN işaretle
     df[colname] = pd.to_numeric(df[colname], errors="coerce")
-    # Sütunun medyanını hesapla
-    median_fiyat = df[colname].median()
-    df[colname] = df[colname].fillna(median_fiyat)
     df[colname] = df[colname].astype(float)
+    median_value = df[colname].median()
+    df[colname] = df[colname].fillna(median_value)
     return df[colname]
 
 satis_df["toplam_satis"] = ObjtoFloat(satis_df,"toplam_satis")
 satis_df["fiyat"] = ObjtoFloat(satis_df,"fiyat")
 satis_df.describe().T
+satis_df.info()
 satis_df.isnull().values.any()
 
 musteri_df.info()   #null deger yok
@@ -60,26 +61,33 @@ def outlier_thresholds(dataframe, col_name, q1=0.25, q3=0.75):
     interquantile_range = quartile3 - quartile1
     up_limit = quartile3 + 1.5 * interquantile_range
     low_limit = quartile1 - 1.5 * interquantile_range
+    print(f"Alt Sınır: {low_limit}, Üst Sınır: {up_limit}")
     return low_limit, up_limit
+def replace_with_thresholds(dataframe, variable):
+    low_limit, up_limit = outlier_thresholds(dataframe, variable)
+    dataframe.loc[(dataframe[variable] < low_limit), variable] = low_limit
+    dataframe.loc[(dataframe[variable] > up_limit), variable] = up_limit
 
-# satis df icin outlier kontrol
-'''Boxplot analizinden aykırı değer olmadığını görebiliriz. Sağlamasını yapmak için 
-q1 q3 kullanarak alt üst sınırları hesaplayıp bakalım.'''
+replace_with_thresholds(satis_df,"toplam_satis")
 
-outlier_thresholds(satis_df, "fiyat")
-low, up = outlier_thresholds(satis_df, "fiyat")
-satis_df[(satis_df["fiyat"] < low) | (satis_df["fiyat"] > up)].head() # Empty DataFrame
+'''
+Kategori bazli  toplam_satis outlier 
+  count    mean     std     min     25%     50%      75%      max
+toplam_satis 5000.00 9779.81 9376.72   22.28 2293.68 6643.45 14084.71 32381.22
 
-# musteri df icin outlier kontrol
-outlier_thresholds(musteri_df, "harcama_miktari")
-low, up = outlier_thresholds(musteri_df, "harcama_miktari")
-musteri_df[(musteri_df["harcama_miktari"] < low) | (musteri_df["harcama_miktari"] > up)].head() # Empty DataFrame
 
-outlier_thresholds(musteri_df, "yas")
-low, up = outlier_thresholds(musteri_df, "yas")
-musteri_df[(musteri_df["yas"] < low) | (musteri_df["yas"] > up)].head() # Empty DataFrame
+Kategori bazlı olmayan toplam satis outlier
+               count    mean     std     min     25%     50%      75%      max
+toplam_satis 5000.00 9785.05 9387.77   22.28 2293.68 6643.45 14084.71 31771.26
+Çok önemli bir fark yok o yüzden normal outlier ile devam 
+'''
+replace_with_thresholds(satis_df,"fiyat")
+replace_with_thresholds(musteri_df,"harcama_miktari")
+satis_df.describe().T
+musteri_df.describe().T
 
-### İki veriseti icin aykiri deger bulunamadı
+
+
 ##############################
 
 ## GOREV 1.3 Veri seti Birleştirme
@@ -97,23 +105,24 @@ Görev 2: Zaman Serisi Analizi (%25)
 '''
 ## GOREV 2.1 Satis trendi analizi
 # 'tarih' sütununu obj tipinde, datetime'e cevirelim
-df_merged['tarih'] = pd.to_datetime(df_merged['tarih'])
+satis_df['tarih'] = pd.to_datetime(satis_df['tarih'])
 # analiz icin toplam satisi hesaplayalım
-df_merged["toplam_satis"] = df_merged["fiyat"] * df_merged["adet"]
+satis_df["toplam_satis"] = satis_df["fiyat"] * satis_df["adet"]
 #  Haftalık ve Aylık toplam satis trendlerin analizi icin
 # ISO takvimine gore hafta ve ay bilgisi alalim (Yiln kacinci hafta ve ayine denk geliyor?) hafta 1-52 ay 1-12
-df_merged['hafta'] = df_merged['tarih'].dt.isocalendar().week
-df_merged['ay'] = df_merged['tarih'].dt.month
+satis_df['hafta'] = satis_df['tarih'].dt.isocalendar().week
+satis_df['ay'] = satis_df['tarih'].dt.month
 
 #aylik ve haftalik satislarin hesaplanmasi
-haftalik_satis = df_merged.groupby('hafta')['toplam_satis'].sum()
-aylik_satis = df_merged.groupby('ay')['toplam_satis'].sum()
+haftalik_satis = satis_df.groupby('hafta')['toplam_satis'].sum()
+aylik_satis = satis_df.groupby('ay')['toplam_satis'].sum()
 
 ## GOREV 2.2
-ayin_ilk_satis_gunu = df_merged.groupby("ay")["tarih"].min()
-ayin_son_satis_gunu = df_merged.groupby("ay")["tarih"].max()
+ayin_ilk_satis_gunu = satis_df.groupby("ay")["tarih"].min()
+ayin_son_satis_gunu = satis_df.groupby("ay")["tarih"].max()
 
-haftalik_adet_satisi = df_merged.groupby("hafta")["adet"].sum()
+haftalik_adet_satisi = satis_df.groupby("hafta")["adet"].sum()
+aylik_adet_satisi =  satis_df.groupby("ay")["adet"].sum()
 
 ## GOREV 2.3
 # Haftalık Satış Grafiği
@@ -132,15 +141,42 @@ plt.xlabel('Ay')
 plt.ylabel('Toplam Satış')
 plt.grid(True)
 plt.show()
-# Haftalık Adet Satışı
+# Aylık Adet Satışı
 plt.figure(figsize=(10, 5))
-plt.plot(haftalik_adet_satisi.index, haftalik_adet_satisi.values, marker='o', color='b', label='Aytlık Satış')
-plt.title('Hatfalık Adet Trendleri')
-plt.xlabel('Hafta')
+plt.plot(aylik_adet_satisi.index, aylik_adet_satisi.values, marker='o', color='b', label='Aytlık Satış')
+plt.title('Aylık Adet Trendleri')
+plt.xlabel('Ay')
 plt.ylabel('Adet')
 plt.grid(True)
 plt.show()
 
+## KAtegıri bazli satis trendleri
+kategori_aylik_satis = satis_df.groupby(['kategori', 'ay'])['toplam_satis'].sum().reset_index()
+plt.figure(figsize=(12, 6))
+
+# Her kategori için ayrı bir trend çizimi
+for kategori in kategori_aylik_satis['kategori'].unique():
+    kategori_data = kategori_aylik_satis[kategori_aylik_satis['kategori'] == kategori]
+    plt.plot(
+        kategori_data['ay'],
+        kategori_data['toplam_satis'],
+        marker='o',
+        label=kategori
+    )
+
+plt.title('Kategori Bazında Aylık Satış Trendleri')
+plt.xlabel('Ay')
+plt.ylabel('Toplam Satış')
+plt.legend(title="Kategori")
+plt.grid(True)
+plt.show()
+
+'''
+ YORUM
+ aylık ve haftalık satış ve adet trendleri incelendiğinde en az satışın 6. ayda yapıldığını gözlemliyoruz.
+ en çok satışın ise 3. ve 4. ayda yapılıyor. yani tahmin edilidiğinin aksine 11.ayda (kasım indrimleri) satışlar yüksek değil.
+'''
+###############
 '''
 Görev 3: Kategorisel ve Sayısal Analiz (%25)
 1.	Ürün kategorilerine göre toplam satış miktarını ve her kategorinin tüm satışlar içindeki oranını hesaplayın.
@@ -148,7 +184,7 @@ Görev 3: Kategorisel ve Sayısal Analiz (%25)
 3.	Kadın ve erkek müşterilerin harcama miktarlarını karşılaştırın ve harcama davranışları arasındaki farkı tespit edin.
 '''
 ## GOREV 3.1
-kat_topalm_satis= df_merged.groupby("kategori")["toplam_satis"].sum()
+kat_topalm_satis= satis_df.groupby("kategori")["toplam_satis"].sum()
 kat_satis_orani =  kat_topalm_satis / kat_topalm_satis.sum() * 100
 
 print("Kategori Bazlı Toplam Satış Miktarları:")
@@ -163,11 +199,11 @@ plt.ylabel("Oran (%)")
 plt.show()
 
 ## GOREV 3.2
-df_merged['yas_grubu'] = df_merged['yas'].apply(lambda x: '18-25' if 18 <= x <= 25
+satis_df['yas_grubu'] = satis_df['yas'].apply(lambda x: '18-25' if 18 <= x <= 25
                                   else '26-35' if 26 <= x <= 35
                                   else '36-50' if 36 <= x <= 50
                                   else '50+')
-yas_grubu_satis =  df_merged.groupby("yas_grubu")["toplam_satis"].sum()
+yas_grubu_satis =  satis_df.groupby("yas_grubu")["toplam_satis"].sum()
 
 print("\nYaş Gruplarına Göre Toplam Satış:")
 print(yas_grubu_satis)
@@ -179,11 +215,14 @@ plt.xlabel('Yaş Grubu')
 plt.ylabel("Toplam Satış")
 plt.grid(True)
 plt.show()
-
+'''
+YORUM:
+Yaşlılar daha fazla satış yapmış. En fazla satış yapan kategori Elektronik hem adet olarak hem fiyat olarak daha fazla katkı sağlamış. 
+'''
 ## GOREV 3.3
-ort_cinsiyet_harcama = df_merged.groupby("cinsiyet")["harcama_miktari"].mean()
+ort_cinsiyet_harcama = satis_df.groupby("cinsiyet")["harcama_miktari"].mean()
 
-cinsiyet_toplam_harcama = df_merged.groupby("cinsiyet")["harcama_miktari"].sum()
+cinsiyet_toplam_harcama = satis_df.groupby("cinsiyet")["harcama_miktari"].sum()
 
 print("\nCinsiyete Göre Ortalama Harcama:")
 print(ort_cinsiyet_harcama)
@@ -201,7 +240,7 @@ Bu oranı hesaplamak için her bir üründe önceki aya göre satış değişim 
 3.	Pandas groupby ile her bir kategorinin aylık toplam satışlarını hesaplayın ve değişim oranlarını grafikle gösterin.
 '''
 ## GOREV 4.1
-sehir_toplam_harcama= df_merged.groupby("sehir")["harcama_miktari"].sum().sort_values(ascending=False)
+sehir_toplam_harcama= musteri_df.groupby("sehir")["harcama_miktari"].sum().sort_values(ascending=False)
 print(sehir_toplam_harcama)
 # Gorsellestirme
 plt.figure(figsize=(8, 6))
@@ -210,7 +249,7 @@ plt.ylabel("Harcama Miktarı")
 plt.show()
 
 ## GOREV 4.2
-urun_aylik_satis = df_merged.groupby(['ay', 'ürün_kodu'])['toplam_satis'].sum().reset_index()
+urun_aylik_satis = satis_df.groupby(['ay', 'ürün_kodu'])['toplam_satis'].sum().reset_index()
 
 urun_aylik_satis['satis_degisim'] = urun_aylik_satis.groupby('ürün_kodu')['toplam_satis'].pct_change()  #yuzdesel degisim hesapla
 ortalama_satis_artisi = urun_aylik_satis.groupby('ürün_kodu')['satis_degisim'].mean()
@@ -220,7 +259,7 @@ print(ortalama_satis_artisi)
 
 ## GOREV 4.3
 
-kat_aylik_satis = df_merged.groupby(['ay', 'kategori'])['toplam_satis'].sum().reset_index()
+kat_aylik_satis = satis_df.groupby(['ay', 'kategori'])['toplam_satis'].sum().reset_index()
 kat_aylik_satis["satis_degisim"] =  kat_aylik_satis.groupby('kategori')['toplam_satis'].pct_change()
 ort_aylik_satis= kat_aylik_satis.groupby("kategori")["satis_degisim"].mean()
 print(ort_aylik_satis)
@@ -235,3 +274,54 @@ plt.ylabel('Satış Değişim Oranı')
 plt.legend()
 plt.grid()
 plt.show()
+
+''' Görev 5: Ekstra (BONUS)
+1.	Pareto Analizi: Satışların %80’ini oluşturan ürünleri belirleyin (80/20 kuralını uygulayın). Bu ürünleri grafikte gösterin.
+2.	Cohort Analizi: Müşterilerin satın alım alışkanlıklarını analiz etmek için Pandas ile cohort analizi yapın. Örneğin, ilk kez satın alan müşterilerin tekrar alım oranlarını inceleyin.
+3.	Tahmin Modeli: Aylık veya haftalık satış miktarlarını tahmin etmek için basit bir regresyon modeli (örneğin Linear Regression) uygulayın. sklearn kullanarak train/test split işlemi ile modeli eğitin ve modelin doğruluğunu ölçün.
+'''
+
+# Pareto Analizi
+# Urun bazli toplan satisi hesapla
+urun_satislari = satis_df.groupby("ürün_adi")["toplam_satis"].sum().sort_values(ascending=False).reset_index()
+
+# cumulative yüzdeyi hesapla
+urun_satislari['cumulative_percent'] = 100 * urun_satislari['toplam_satis'].cumsum() / urun_satislari['toplam_satis'].sum()
+
+# Satışların %80'ini oluşturan ürünleri hesapla
+pareto_urunleri = urun_satislari[urun_satislari['cumulative_percent'] <= 80]
+
+fig, ax1 = plt.subplots(figsize=(12, 6))
+
+# Bar grafiği (toplam satışlar)
+ax1.bar(urun_satislari['ürün_adi'], urun_satislari['toplam_satis'], color="skyblue", label="Satış Hacmi")
+ax1.set_xlabel("Ürünler")
+ax1.set_ylabel("Toplam Satış", color="blue")
+ax1.tick_params(axis="y", labelcolor="blue")
+ax1.set_xticklabels(urun_satislari['ürün_adi'], rotation=90)
+
+# İkinci Y-ekseni (kümülatif yüzde)
+ax2 = ax1.twinx()
+ax2.plot(
+    urun_satislari['ürün_adi'],
+    urun_satislari['cumulative_percent'],
+    color="red", marker="o", label="Kümülatif Yüzde"
+)
+ax2.axhline(y=80, color="green", linestyle="--", label="80% Eşiği")
+ax2.set_ylabel("Kümülatif %", color="red")
+ax2.tick_params(axis="y", labelcolor="red")
+
+plt.title("Pareto Analizi - Satışların %80'ini Oluşturan Ürünler")
+ax1.legend(loc="upper left")
+ax2.legend(loc="upper right")
+plt.tight_layout()
+plt.show()
+
+''' YORUM:
+ Kalem Telefon Çanta Defter Fırın Mouse Su sisesi (ilk 7 ürün) toplam satışların %80nini karşılıyor. 
+ Kalan iki ürün (Kulaklık ve bilgisayar) niş ürün diye tabir edebileceğimiz
+doğru kampanya, fiyatlandırma veya pazarlama stratejileri ile daha büyük katkı sağlayabilecek ürünlerdir.
+
+'''
+
+
